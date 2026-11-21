@@ -61,9 +61,22 @@ src/main/java/cl/fuma/tienda/
 ├── FumaApplication.java   arranque de la aplicación
 ├── model/                 entidades: una clase por tabla (y el enum Rol)
 ├── repository/            acceso a la base de datos (un repositorio por entidad)
-├── config/                configuración y carga de datos iniciales
-├── service/               lógica de negocio (Fase 2)
+├── service/               lógica de negocio: reglas, validaciones y cálculos
+├── dto/                   datos que envía el frontend (SolicitudProducto, SolicitudBoleta)
+├── exception/             errores del negocio (no encontrado, datos inválidos, pago rechazado)
+├── util/                  cálculos de precios (Precios.java)
+├── config/                carga de datos iniciales
 ├── controller/            endpoints REST /api/v1 (Fase 3)
-├── dto/                   objetos de entrada y salida de la API (Fase 3)
 └── security/              JWT y Spring Security (Fase 4)
 ```
+
+## Lógica de negocio (capa `service/`)
+Los controladores solo reciben la petición y llaman a un servicio; las reglas viven en los servicios.
+
+| Servicio | Qué hace |
+|---|---|
+| `CategoriaService` | Lista categorías y busca una por id |
+| `ProductoService` | Lista el catálogo (todos, por categoría u ofertas); crea, edita y elimina productos con validación. No permite eliminar un producto que ya tiene ventas |
+| `BoletaService` | Crea la compra: valida los datos, simula el pago (rechaza tarjetas que empiezan con `0000` y nunca guarda el número), toma los precios de la base de datos, calcula subtotal, envío ($3.990 con despacho) y total, y guarda la boleta con sus detalles |
+
+Los cálculos de precios (`util/Precios.java`) y las validaciones son los mismos que ya tenía el frontend en `utils/precios.js` y `utils/validaciones.js`, ahora ejecutados en el servidor.
