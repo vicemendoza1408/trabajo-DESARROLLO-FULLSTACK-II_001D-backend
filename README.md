@@ -146,3 +146,19 @@ La clave con la que se firman los tokens y su duración se configuran en `applic
 
 **Prueba automática de los permisos:** con el backend corriendo, `bash scripts/probar-seguridad.sh` inicia sesión con cada rol,
 hace peticiones permitidas y prohibidas, y compara el código HTTP obtenido con el esperado (crea 2 boletas de prueba).
+
+## Pruebas automáticas
+Se ejecutan con `mvn test` (o desde IntelliJ: clic derecho en `src/test/java` → Run Tests). Son 76 pruebas con JUnit 5, Mockito y MockMvc.
+Las de integración usan **H2**, una base de datos en memoria (perfil `test`, archivo `src/test/resources/application-test.properties`),
+así que no tocan la base MySQL real y no dejan datos de prueba.
+
+| Clase | Tipo | Qué verifica |
+|---|---|---|
+| `PreciosTest` | Unitaria | Precio con descuento (con redondeo) y costo de envío |
+| `JwtServicioTest` | Unitaria | Token válido, vencido, alterado o firmado con otra clave |
+| `ProductoServiceTest` | Unitaria (Mockito) | Validaciones, producto inexistente y no eliminar productos con ventas |
+| `BoletaServiceTest` | Unitaria (Mockito) | Precios tomados de la base, envío, pago rechazado, validaciones y boletas ajenas |
+| `AuthApiTest` | Integración (MockMvc) | Login, `/auth/me`, renovación y tokens inválidos (401) |
+| `ProductoApiTest` | Integración (MockMvc) | Consulta pública, CRUD del administrador y permisos por rol (401/403) |
+| `BoletaApiTest` | Integración (MockMvc) | Compra completa, códigos 400/402/404 y permisos de lectura por rol |
+

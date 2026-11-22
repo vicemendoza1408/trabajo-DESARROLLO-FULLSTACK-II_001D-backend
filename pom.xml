@@ -90,6 +90,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- H2: base de datos en memoria solo para las pruebas (así no se usa la base MySQL real). -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Permite probar los endpoints protegidos simulando usuarios con rol (Fase 5). -->
         <dependency>
             <groupId>org.springframework.security</groupId>
