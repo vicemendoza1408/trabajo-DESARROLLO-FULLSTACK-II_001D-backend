@@ -2,6 +2,14 @@
 
 Backend de la tienda online Fuma, para la Evaluación Parcial 3 de DSY1104 (Desarrollo Fullstack II). Es una API REST hecha con Spring Boot que guarda los datos en MySQL. El frontend (React) está en otro repositorio.
 
+## Repositorios del proyecto
+| Repositorio | Contenido | Enlace |
+|---|---|---|
+| `trabajo-DESARROLLO-FULLSTACK-II_001D-backend` (este) | Backend: Spring Boot + MySQL + Swagger | https://github.com/vicemendoza1408/trabajo-DESARROLLO-FULLSTACK-II_001D-backend |
+| `trabajo-DESARROLLO-FULLSTACK-II_001D` | Frontend: React + Vite (consume esta API) | https://github.com/vicemendoza1408/trabajo-DESARROLLO-FULLSTACK-II_001D |
+
+El frontend se conecta a esta API en `http://localhost:8080/api/v1` (configurable con `VITE_API_URL` en el frontend). Los usuarios de prueba que usa el frontend se crean al arrancar este backend.
+
 ## Tecnologías
 - Java 17 y Maven
 - Spring Boot 3.3 (Web, Data JPA, Validation, Security)
