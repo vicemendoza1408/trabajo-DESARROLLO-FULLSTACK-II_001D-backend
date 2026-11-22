@@ -33,6 +33,18 @@ public class ManejadorErrores {
         return responder(HttpStatus.PAYMENT_REQUIRED, error.getMessage(), Map.of());
     }
 
+    // Correo o contraseña incorrectos en el login -> 401 (no autenticado).
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<RespuestaError> manejarCredencialesInvalidas(CredencialesInvalidasException error) {
+        return responder(HttpStatus.UNAUTHORIZED, error.getMessage(), Map.of());
+    }
+
+    // El usuario inició sesión pero no puede ver ese recurso (boleta de otro cliente) -> 403 (prohibido).
+    @ExceptionHandler(AccesoDenegadoException.class)
+    public ResponseEntity<RespuestaError> manejarAccesoDenegado(AccesoDenegadoException error) {
+        return responder(HttpStatus.FORBIDDEN, error.getMessage(), Map.of());
+    }
+
     // El cuerpo de la petición no es un JSON válido (o un número viene como texto) -> 400.
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<RespuestaError> manejarJsonInvalido(HttpMessageNotReadableException error) {

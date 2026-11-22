@@ -4,10 +4,10 @@ Backend de la tienda online Fuma, para la Evaluación Parcial 3 de DSY1104 (Desa
 
 ## Tecnologías
 - Java 17 y Maven
-- Spring Boot 3.3 (Web, Data JPA, Validation)
+- Spring Boot 3.3 (Web, Data JPA, Validation, Security)
 - MySQL 8
 - Swagger (springdoc-openapi 2.6)
-- Se agregan en fases siguientes: Spring Security y JWT
+- JWT (jjwt 0.12) para la autenticación y BCrypt para cifrar contraseñas
 
 ## Requisitos
 - Java 17 o superior
@@ -27,6 +27,7 @@ Al arrancar, el backend:
 1. Crea la base `fuma_db` si no existe.
 2. Crea las tablas a partir de las entidades (`spring.jpa.hibernate.ddl-auto=update`).
 3. Carga las 4 categorías y los 8 productos iniciales si la base está vacía.
+4. Crea los 3 usuarios de prueba (uno por rol) si no hay usuarios.
 
 El servidor queda en `http://localhost:8080`.
 
@@ -38,6 +39,7 @@ SHOW TABLES;
 SELECT id, nombre, precio, descuento_porcentaje, id_categoria FROM producto;
 ```
 Deben aparecer 5 tablas (`categoria`, `producto`, `usuario`, `boleta`, `detalle_boleta`) y 8 productos.
+Además, `SELECT correo, rol, contrasena FROM usuario;` muestra 3 usuarios con la contraseña cifrada (empieza con `$2a$`).
 
 ## Modelo de datos
 Las 5 tablas del enunciado (Figura 1):
@@ -66,9 +68,9 @@ src/main/java/cl/fuma/tienda/
 ├── dto/                   datos que entran (Solicitud...) y salen (...Respuesta) de la API
 ├── exception/             errores del negocio y su conversión a respuestas HTTP (ManejadorErrores)
 ├── util/                  cálculos de precios (Precios.java)
-├── config/                datos iniciales, CORS y Swagger
+├── config/                datos iniciales, CORS, Swagger y reglas de seguridad (ConfiguracionSeguridad)
 ├── controller/            endpoints REST /api/v1
-└── security/              JWT y Spring Security (Fase 4)
+└── security/              JWT: creación y verificación de tokens, filtro por petición y respuestas 401/403
 ```
 
 ## Lógica de negocio (capa `service/`)
@@ -78,7 +80,8 @@ Los controladores solo reciben la petición y llaman a un servicio; las reglas v
 |---|---|
 | `CategoriaService` | Lista categorías y busca una por id |
 | `ProductoService` | Lista el catálogo (todos, por categoría u ofertas); crea, edita y elimina productos con validación. No permite eliminar un producto que ya tiene ventas |
-| `BoletaService` | Crea la compra: valida los datos, simula el pago (rechaza tarjetas que empiezan con `0000` y nunca guarda el número), toma los precios de la base de datos, calcula subtotal, envío ($3.990 con despacho) y total, y guarda la boleta con sus detalles |
+| `AuthService` | Inicio de sesión: busca al usuario por correo y compara la contraseña con el hash BCrypt |
+| `BoletaService` | Crea la compra: valida los datos, simula el pago (rechaza tarjetas que empiezan con `0000` y nunca guarda el número), toma los precios de la base de datos, calcula subtotal, envío ($3.990 con despacho) y total, y guarda la boleta con sus detalles. Además, un cliente solo puede ver sus propias boletas |
 
 Los cálculos de precios (`util/Precios.java`) y las validaciones son los mismos que ya tenía el frontend en `utils/precios.js` y `utils/validaciones.js`, ahora ejecutados en el servidor.
 
@@ -86,19 +89,60 @@ Los cálculos de precios (`util/Precios.java`) y las validaciones son los mismos
 Todas las rutas empiezan con `/api/v1`. La documentación interactiva (Swagger) está en
 `http://localhost:8080/swagger-ui/index.html`, donde se puede probar cada endpoint.
 
-| Método | Ruta | Descripción | Respuestas |
-|---|---|---|---|
-| GET | `/api/v1/categorias` | Lista las categorías | 200 |
-| GET | `/api/v1/categorias/{id}` | Detalle de una categoría | 200, 404 |
-| GET | `/api/v1/productos` | Lista productos (`?idCategoria=poleras` o `?ofertas=true`) | 200 |
-| GET | `/api/v1/productos/{id}` | Detalle de un producto | 200, 404 |
-| POST | `/api/v1/productos` | Crea un producto | 201, 400 |
-| PUT | `/api/v1/productos/{id}` | Actualiza un producto | 200, 400, 404 |
-| DELETE | `/api/v1/productos/{id}` | Elimina un producto (no si ya tiene ventas) | 204, 400, 404 |
-| GET | `/api/v1/boletas` | Lista las boletas | 200 |
-| GET | `/api/v1/boletas/{id}` | Detalle de una boleta | 200, 404 |
+| Método | Ruta | Quién puede usarlo | Descripción | Respuestas |
+|---|---|---|---|---|
+| POST | `/api/v1/auth/login` | Público | Inicia sesión y entrega el token JWT | 200, 400, 401 |
+| POST | `/api/v1/auth/refresh` | Con sesión | Renueva el token (aún vigente) | 200, 401 |
+| GET | `/api/v1/auth/me` | Con sesión | Datos del usuario dueño del token | 200, 401 |
+| GET | `/api/v1/categorias` | Público | Lista las categorías | 200 |
+| GET | `/api/v1/categorias/{id}` | Público | Detalle de una categoría | 200, 404 |
+| GET | `/api/v1/productos` | Público | Lista productos (`?idCategoria=poleras` o `?ofertas=true`) | 200 |
+| GET | `/api/v1/productos/{id}` | Público | Detalle de un producto | 200, 404 |
+| POST | `/api/v1/productos` | ADMIN | Crea un producto | 201, 400, 401, 403 |
+| PUT | `/api/v1/productos/{id}` | ADMIN | Actualiza un producto | 200, 400, 401, 403, 404 |
+| DELETE | `/api/v1/productos/{id}` | ADMIN | Elimina un producto (no si ya tiene ventas) | 204, 400, 401, 403, 404 |
+| POST | `/api/v1/boletas` | CLIENTE, ADMIN | Realiza una compra y genera la boleta | 201, 400, 401, 402, 403 |
+| GET | `/api/v1/boletas` | ADMIN, VENDEDOR | Lista las boletas | 200, 401, 403 |
+| GET | `/api/v1/boletas/{id}` | ADMIN, VENDEDOR; CLIENTE solo la suya | Detalle de una boleta | 200, 401, 403, 404 |
 
 Errores: el backend responde con un JSON `{ "estado", "mensaje", "errores" }`. Los códigos usados son
-400 (datos inválidos), 402 (pago rechazado), 404 (no existe).
+400 (datos inválidos), 401 (sin sesión o credenciales incorrectas), 402 (pago rechazado),
+403 (sin permiso para ese rol) y 404 (no existe).
 
-La autenticación con JWT, los roles y la compra (`POST /api/v1/boletas`) se agregan en la Fase 4.
+## Seguridad (Spring Security + JWT)
+
+**Flujo:**
+1. El frontend envía `POST /api/v1/auth/login` con `correo` y `contrasena`.
+2. `AuthService` busca al usuario y compara la contraseña con el hash BCrypt guardado.
+3. Si coincide, `JwtServicio` crea un token JWT firmado (lleva el correo, el rol y la fecha de vencimiento; dura 30 minutos).
+4. En cada petición protegida el frontend envía `Authorization: Bearer <token>`.
+5. `FiltroJwt` verifica la firma y el vencimiento, y le informa a Spring Security quién es el usuario y su rol.
+6. `ConfiguracionSeguridad` decide si ese rol puede usar el endpoint: si no hay sesión responde **401**; si hay sesión pero el rol no alcanza, **403**.
+7. Antes de que el token venza, `POST /api/v1/auth/refresh` entrega uno nuevo. Con `GET /api/v1/auth/me` el frontend recupera la sesión al recargar la página.
+
+**Permisos por rol:**
+
+| Acción | Público | CLIENTE | VENDEDOR | ADMIN |
+|---|:-:|:-:|:-:|:-:|
+| Ver categorías y productos | sí | sí | sí | sí |
+| Comprar | no | sí | no | sí |
+| Ver sus propias boletas | no | sí | sí | sí |
+| Ver la lista y el detalle de todas las boletas | no | no | sí | sí |
+| Crear, editar y eliminar productos | no | no | no | sí |
+
+**Usuarios de prueba** (se crean solos al arrancar; las contraseñas se guardan cifradas con BCrypt):
+
+| Rol | Correo | Contraseña |
+|---|---|---|
+| ADMIN | `admin@fuma.cl` | `admin123` |
+| VENDEDOR | `vendedor@fuma.cl` | `vendedor123` |
+| CLIENTE | `cliente@fuma.cl` | `cliente123` |
+
+**Probar en Swagger:** ejecutar `POST /api/v1/auth/login`, copiar el `token` de la respuesta, presionar **Authorize**
+(arriba a la derecha) y pegarlo. Los endpoints con candado ya usarán ese token.
+
+La clave con la que se firman los tokens y su duración se configuran en `application.properties`
+(`fuma.jwt.secreto`, que en un sistema real se define con la variable de entorno `JWT_SECRETO`, y `fuma.jwt.expiracion-minutos`).
+
+**Prueba automática de los permisos:** con el backend corriendo, `bash scripts/probar-seguridad.sh` inicia sesión con cada rol,
+hace peticiones permitidas y prohibidas, y compara el código HTTP obtenido con el esperado (crea 2 boletas de prueba).

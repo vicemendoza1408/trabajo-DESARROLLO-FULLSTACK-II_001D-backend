@@ -9,8 +9,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BoletaRepository extends JpaRepository<Boleta, Long> {
 
     // Todas las boletas, de la más nueva a la más antigua.
-    List<Boleta> findAllByOrderByFechaDesc();
+    // Si dos boletas tienen la misma fecha (MySQL guarda la fecha sin fracciones de segundo),
+    // se desempata por id descendente, así la última creada siempre queda primero.
+    List<Boleta> findAllByOrderByFechaDescIdDesc();
 
-    // Las boletas de un usuario, de la más nueva a la más antigua.
-    List<Boleta> findByUsuarioIdOrderByFechaDesc(Long idUsuario);
+    // Las boletas de un usuario, de la más nueva a la más antigua (mismo desempate por id).
+    List<Boleta> findByUsuarioIdOrderByFechaDescIdDesc(Long idUsuario);
 }

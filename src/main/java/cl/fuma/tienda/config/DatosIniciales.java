@@ -2,29 +2,62 @@ package cl.fuma.tienda.config;
 
 import cl.fuma.tienda.model.Categoria;
 import cl.fuma.tienda.model.Producto;
+import cl.fuma.tienda.model.Rol;
+import cl.fuma.tienda.model.Usuario;
 import cl.fuma.tienda.repository.CategoriaRepository;
 import cl.fuma.tienda.repository.ProductoRepository;
+import cl.fuma.tienda.repository.UsuarioRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-// Carga los datos iniciales de la tienda (las mismas categorías y productos del frontend)
-// la primera vez que se levanta el backend. CommandLineRunner se ejecuta al arrancar la aplicación.
-// Los usuarios de prueba se agregan en la Fase 4, cuando ya exista el cifrado de contraseñas.
+// Carga los datos iniciales (catálogo y usuarios de prueba) la primera vez que se levanta el backend.
+// CommandLineRunner se ejecuta al arrancar la aplicación.
+// El catálogo y los usuarios se cargan por separado: cada uno solo se crea si su tabla está vacía.
 @Component
 public class DatosIniciales implements CommandLineRunner {
 
     private final CategoriaRepository categoriaRepository;
     private final ProductoRepository productoRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // Spring entrega los repositorios solos (inyección de dependencias por constructor).
-    public DatosIniciales(CategoriaRepository categoriaRepository, ProductoRepository productoRepository) {
+    // Spring entrega los repositorios y el cifrador solos (inyección de dependencias por constructor).
+    public DatosIniciales(CategoriaRepository categoriaRepository, ProductoRepository productoRepository,
+                          UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         this.categoriaRepository = categoriaRepository;
         this.productoRepository = productoRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) {
-        // Si ya hay categorías, la base ya tiene datos y no se vuelve a cargar nada.
+        cargarCatalogo();
+        cargarUsuarios();
+    }
+
+    // Usuarios de prueba, uno por rol. Las contraseñas se guardan CIFRADAS con BCrypt (nunca en texto plano).
+    //   admin@fuma.cl / admin123       -> ADMIN    (acceso total)
+    //   vendedor@fuma.cl / vendedor123 -> VENDEDOR (solo ve productos y boletas)
+    //   cliente@fuma.cl / cliente123   -> CLIENTE  (solo la tienda)
+    private void cargarUsuarios() {
+        // Si ya hay usuarios, no se vuelve a cargar nada.
+        if (usuarioRepository.count() > 0) {
+            return;
+        }
+
+        usuarioRepository.save(new Usuario("Administrador Fuma", "admin@fuma.cl",
+                passwordEncoder.encode("admin123"), "987654321", "Local Fuma 1", Rol.ADMIN));
+        usuarioRepository.save(new Usuario("Vendedor Fuma", "vendedor@fuma.cl",
+                passwordEncoder.encode("vendedor123"), "976543210", "Local Fuma 1", Rol.VENDEDOR));
+        usuarioRepository.save(new Usuario("Cliente Demo", "cliente@fuma.cl",
+                passwordEncoder.encode("cliente123"), "912345678", "Av. Principal 123", Rol.CLIENTE));
+    }
+
+    // Las mismas categorías y productos que tenía el frontend.
+    private void cargarCatalogo() {
+        // Si ya hay categorías, el catálogo ya está cargado.
         if (categoriaRepository.count() > 0) {
             return;
         }

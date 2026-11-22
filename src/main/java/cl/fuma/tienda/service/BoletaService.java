@@ -2,12 +2,14 @@ package cl.fuma.tienda.service;
 
 import cl.fuma.tienda.dto.ItemSolicitud;
 import cl.fuma.tienda.dto.SolicitudBoleta;
+import cl.fuma.tienda.exception.AccesoDenegadoException;
 import cl.fuma.tienda.exception.DatosInvalidosException;
 import cl.fuma.tienda.exception.PagoRechazadoException;
 import cl.fuma.tienda.exception.RecursoNoEncontradoException;
 import cl.fuma.tienda.model.Boleta;
 import cl.fuma.tienda.model.DetalleBoleta;
 import cl.fuma.tienda.model.Producto;
+import cl.fuma.tienda.model.Rol;
 import cl.fuma.tienda.model.Usuario;
 import cl.fuma.tienda.repository.BoletaRepository;
 import cl.fuma.tienda.util.Precios;
@@ -41,17 +43,30 @@ public class BoletaService {
 
     // Todas las boletas (para ADMIN y VENDEDOR).
     public List<Boleta> listar() {
-        return boletaRepository.findAllByOrderByFechaDesc();
+        return boletaRepository.findAllByOrderByFechaDescIdDesc();
     }
 
     // Solo las boletas de un usuario (para que un CLIENTE vea sus compras).
     public List<Boleta> listarDeUsuario(Long idUsuario) {
-        return boletaRepository.findByUsuarioIdOrderByFechaDesc(idUsuario);
+        return boletaRepository.findByUsuarioIdOrderByFechaDescIdDesc(idUsuario);
     }
 
     public Boleta buscarPorId(Long id) {
         return boletaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la boleta " + id + "."));
+    }
+
+    // Detalle de una boleta pedido por un usuario con sesión.
+    // ADMIN y VENDEDOR pueden ver cualquiera; un CLIENTE solo las que él mismo compró.
+    public Boleta buscarPorId(Long id, Usuario solicitante) {
+        Boleta boleta = buscarPorId(id);
+        boolean esCliente = solicitante.getRol() == Rol.CLIENTE;
+        boolean esDeOtro = boleta.getUsuario() == null
+                || !boleta.getUsuario().getId().equals(solicitante.getId());
+        if (esCliente && esDeOtro) {
+            throw new AccesoDenegadoException("No puedes ver las boletas de otros usuarios.");
+        }
+        return boleta;
     }
 
     // ---------- Compra ----------

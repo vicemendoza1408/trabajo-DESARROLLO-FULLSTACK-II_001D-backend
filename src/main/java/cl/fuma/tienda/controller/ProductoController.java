@@ -6,6 +6,7 @@ import cl.fuma.tienda.model.Producto;
 import cl.fuma.tienda.service.ProductoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -65,27 +66,36 @@ public class ProductoController {
 
     // @RequestBody toma el JSON que envía el frontend y lo convierte en un SolicitudProducto.
     @PostMapping
+    @SecurityRequirement(name = "bearerAuth")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Crea un producto (solo administrador)")
     @ApiResponse(responseCode = "201", description = "Producto creado")
     @ApiResponse(responseCode = "400", description = "Datos inválidos")
+    @ApiResponse(responseCode = "401", description = "No ha iniciado sesión")
+    @ApiResponse(responseCode = "403", description = "Solo el administrador puede hacerlo")
     public ProductoRespuesta crear(@RequestBody SolicitudProducto solicitud) {
         return ProductoRespuesta.desde(productoService.crear(solicitud));
     }
 
     @PutMapping("/{id}")
+    @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Actualiza un producto existente (solo administrador)")
     @ApiResponse(responseCode = "200", description = "Producto actualizado")
     @ApiResponse(responseCode = "400", description = "Datos inválidos")
+    @ApiResponse(responseCode = "401", description = "No ha iniciado sesión")
+    @ApiResponse(responseCode = "403", description = "Solo el administrador puede hacerlo")
     @ApiResponse(responseCode = "404", description = "No existe el producto")
     public ProductoRespuesta actualizar(@PathVariable Long id, @RequestBody SolicitudProducto solicitud) {
         return ProductoRespuesta.desde(productoService.actualizar(id, solicitud));
     }
 
     @DeleteMapping("/{id}")
+    @SecurityRequirement(name = "bearerAuth")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Elimina un producto (solo administrador). No se puede si ya tiene ventas")
     @ApiResponse(responseCode = "204", description = "Producto eliminado")
+    @ApiResponse(responseCode = "401", description = "No ha iniciado sesión")
+    @ApiResponse(responseCode = "403", description = "Solo el administrador puede hacerlo")
     @ApiResponse(responseCode = "400", description = "El producto ya tiene ventas registradas")
     @ApiResponse(responseCode = "404", description = "No existe el producto")
     public void eliminar(@PathVariable Long id) {
