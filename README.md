@@ -6,7 +6,8 @@ Backend de la tienda online Fuma, para la Evaluación Parcial 3 de DSY1104 (Desa
 - Java 17 y Maven
 - Spring Boot 3.3 (Web, Data JPA, Validation)
 - MySQL 8
-- Se agregan en fases siguientes: Swagger (springdoc), Spring Security y JWT
+- Swagger (springdoc-openapi 2.6)
+- Se agregan en fases siguientes: Spring Security y JWT
 
 ## Requisitos
 - Java 17 o superior
@@ -62,11 +63,11 @@ src/main/java/cl/fuma/tienda/
 ├── model/                 entidades: una clase por tabla (y el enum Rol)
 ├── repository/            acceso a la base de datos (un repositorio por entidad)
 ├── service/               lógica de negocio: reglas, validaciones y cálculos
-├── dto/                   datos que envía el frontend (SolicitudProducto, SolicitudBoleta)
-├── exception/             errores del negocio (no encontrado, datos inválidos, pago rechazado)
+├── dto/                   datos que entran (Solicitud...) y salen (...Respuesta) de la API
+├── exception/             errores del negocio y su conversión a respuestas HTTP (ManejadorErrores)
 ├── util/                  cálculos de precios (Precios.java)
-├── config/                carga de datos iniciales
-├── controller/            endpoints REST /api/v1 (Fase 3)
+├── config/                datos iniciales, CORS y Swagger
+├── controller/            endpoints REST /api/v1
 └── security/              JWT y Spring Security (Fase 4)
 ```
 
@@ -80,3 +81,24 @@ Los controladores solo reciben la petición y llaman a un servicio; las reglas v
 | `BoletaService` | Crea la compra: valida los datos, simula el pago (rechaza tarjetas que empiezan con `0000` y nunca guarda el número), toma los precios de la base de datos, calcula subtotal, envío ($3.990 con despacho) y total, y guarda la boleta con sus detalles |
 
 Los cálculos de precios (`util/Precios.java`) y las validaciones son los mismos que ya tenía el frontend en `utils/precios.js` y `utils/validaciones.js`, ahora ejecutados en el servidor.
+
+## API REST (versión v1)
+Todas las rutas empiezan con `/api/v1`. La documentación interactiva (Swagger) está en
+`http://localhost:8080/swagger-ui/index.html`, donde se puede probar cada endpoint.
+
+| Método | Ruta | Descripción | Respuestas |
+|---|---|---|---|
+| GET | `/api/v1/categorias` | Lista las categorías | 200 |
+| GET | `/api/v1/categorias/{id}` | Detalle de una categoría | 200, 404 |
+| GET | `/api/v1/productos` | Lista productos (`?idCategoria=poleras` o `?ofertas=true`) | 200 |
+| GET | `/api/v1/productos/{id}` | Detalle de un producto | 200, 404 |
+| POST | `/api/v1/productos` | Crea un producto | 201, 400 |
+| PUT | `/api/v1/productos/{id}` | Actualiza un producto | 200, 400, 404 |
+| DELETE | `/api/v1/productos/{id}` | Elimina un producto (no si ya tiene ventas) | 204, 400, 404 |
+| GET | `/api/v1/boletas` | Lista las boletas | 200 |
+| GET | `/api/v1/boletas/{id}` | Detalle de una boleta | 200, 404 |
+
+Errores: el backend responde con un JSON `{ "estado", "mensaje", "errores" }`. Los códigos usados son
+400 (datos inválidos), 402 (pago rechazado), 404 (no existe).
+
+La autenticación con JWT, los roles y la compra (`POST /api/v1/boletas`) se agregan en la Fase 4.
